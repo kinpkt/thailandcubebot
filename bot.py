@@ -287,9 +287,9 @@ async def submit(ctx, event, a1, a2 = None, a3 = None, a4 = None, a5 = None):
         if none_count >= 3:
             await ctx.reply(lang_str.submit_not_n(ctx.author.id, 3))
         else:
-            attempts = [attempt.replace('dnf', 0).replace('dns', -1) for attempt in attempts]
+            attempts = [attempt.replace('dnf', '-1').replace('dns', -2) for attempt in attempts]
             attempts = [float(i) for i in attempts]
-            result = attempts.remove(0).remove(-1)
+            result = attempts.remove(-1).remove(-2)
             result.sort()
             result = result[0]
             result_dict = {'user_id': ctx.author.id, 'event': event, 'a1': a1, 'a2': a2, 'a3': a3, 'a4': a4, 'a5': a5, 'result': result}
