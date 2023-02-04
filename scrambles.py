@@ -1,5 +1,4 @@
 import random
-from pyTwistyScrambler import squareOneScrambler
 
 def gen(event, attempts):
     scrambles_list = []
@@ -269,7 +268,7 @@ def scrSkewb():
     return ' '.join([i for i in full_moves])
 
 def scrSQ1():
-    return squareOneScrambler.get_WCA_scramble()
+    return None
 
 def scr4BLD():
     rotates = [["x", "x'", "x2", "z", "z'", "z2", ""], ["y", "y'", "y2", ""]]
