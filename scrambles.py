@@ -63,7 +63,7 @@ def scr222():
         move = random.choice(moves)
         full_moves.append(move)
         moves = no_r if 'R' in move else no_u if 'U' in move else no_f
-    return ' '.join([i for i in moves])
+    return ' '.join([i for i in full_moves])
 
 def scr444():
     moves = ["R", "R'", "R2", "Rw", "Rw'", "Rw2", "L", "L'", "L2", "U", "U'", "U2", "Uw", "Uw'", "Uw2", "D", "D'", "D2", "F", "F'", "F2", "Fw", "Fw'", "Fw2", "B", "B'", "B2"]

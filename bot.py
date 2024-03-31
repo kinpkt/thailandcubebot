@@ -1,7 +1,7 @@
 import os
-import re
-import time
 import json
+import random
+import asyncio
 import pymongo
 import discord
 import lang_str
@@ -10,10 +10,11 @@ import scrambles
 from dotenv import load_dotenv
 from translate import Translator
 from discord.ext import commands
+from pythainlp.transliterate import puan as spooner
 
 load_dotenv()
 
-ADMIN_ID = [492332351561400320, 336475825601904641]
+ADMIN_DISCORD_ID = [492332351561400320, 336475825601904641]
 WCA_API_LINK = 'https://www.worldcubeassociation.org/api/v0'
 CONTINENT_ID = {'_Africa': 'แอฟริกา', '_Asia': 'เอเชีย', '_Europe': 'ยุโรป', '_North America': 'อเมริกาเหนือ', '_Oceania': 'โอเชียเนีย', '_South America': 'อเมริกาใต้'}
 EVENT_ID = {'333': '3x3x3 Cube', '222': '2x2x2 Cube', '444': '4x4x4 Cube', '555': '5x5x5 Cube', '666': '6x6x6 Cube', '777': '7x7x7 Cube', '3bld': '3x3x3 Blindfolded', 'fmc': '3x3x3 Fewest Moves', 'oh': '3x3x3 One-Handed', 'clock': 'Clock', 'mega': 'Megaminx', 'pyra': 'Pyraminx', 'skewb': 'Skewb', 'sq1': 'Square-1', '4bld': '4x4x4 Blindfolded', '5bld': '5x5x5 Bilndfolded'}
@@ -50,6 +51,12 @@ def IS_VALID_ATTEMPT(attempt):
         if attempt is None:
             return True
 
+def SEC2MIN(seconds):
+    minutes = int(seconds // 60)
+    remaining_seconds = int(seconds % 60)
+    milliseconds = int((seconds % 1) * 1000)
+    return "{:02d}:{:02d}.{:02d}".format(minutes, remaining_seconds, milliseconds) if minutes >= 10 else "{:01d}:{:02d}.{:02d}".format(minutes, remaining_seconds, milliseconds)
+
 print('Successfully connected to the database.')
 
 intents = discord.Intents.all()
@@ -84,49 +91,18 @@ async def help(ctx):
     lang = GET_USER_LANG(ctx.author.id)
     return await ctx.send('https://drive.google.com/file/d/15pgT27nR8yvBQO3x8YdDbk3EU54YgW6M/view?usp=sharing') if lang == 'en' else await ctx.send('https://drive.google.com/file/d/1aSeI5s415Q1hszS7ndpLrCMuMwX1ZeKx/view?usp=sharing')
 
-'''
 @client.command()
-async def help(ctx):
-    commands_list = [
-        {'cmd': 'คำสั่งทั่วไป', 'category': True},
-        {'cmd': 'help', 'desc': 'คำสั่งบอกรายชื่อคำสั่งทั้งหมด'},
-        {'cmd': 'prefix', 'desc': f'คำสั่งเปลี่ยนคำนำหน้าคำสั่ง (ตอนนี้ : {PREFIX})'},
-        {'cmd': 'คำสั่งข้อมูล WCA', 'category': True},
-        {'cmd': 'whois [WCA ID]', 'desc': 'คำสั่งบอกรายละเอียดผู้เข้าแข่งขันตาม WCA ID'},
-        {'cmd': 'คำสั่งคำนวณเวลา', 'category': True},
-        {'cmd': 'mo3 [เวลา 1] [เวลา 2] [เวลา 3]', 'desc': 'คำสั่งคำนวณเวลาแบบ Mo3'},
-        {'cmd': 'ao5 [เวลา 1] [เวลา 2] [เวลา 3] [เวลา 4] [เวลา 5]', 'desc': 'คำสั่งคำนวณเวลาแบบ Ao5'},
-        {'cmd': 'คำสั่งสร้างโจทย์', 'category': True},
-        {'cmd': 'generate [ประเภท] [จำนวนโจทย์]', 'desc': 'คำสั่งสร้างโจทย์'}
-    ]
-    embed = discord.Embed(title='คำสั่งบอท')
-    for cmd in commands_list:
-        if 'category' in cmd:
-            embed.add_field(name='** **', value='** **', inline=False)
-            embed.add_field(name=cmd['cmd'], value='** **', inline=False)
-            continue
-        embed.add_field(name=f'{PREFIX}{cmd["cmd"]}', value=cmd['desc'], inline=True)
-    embed.set_footer(text='หมายเหตุ : ไม่ต้องใส่ [] เวลาใช้คำสั่ง')
-    await ctx.reply(embed=embed)
-'''
-
-@client.command()
-async def upcoming(ctx):
-    embed = discord.Embed(title='Lat Krabang Cubing 2023 ', url='https://www.worldcubeassociation.org/competitions/LatKrabangCubing2023')
-    embed.set_image(url='https://i.imgur.com/GtMnxy3.png')
-    embed.add_field(name='**Date**', value='18 - 19 February 2023')
-    embed.add_field(name='**Location**', value='Robinson Lifestyle Lat Krabang (Activity Hall, G Floor)')
-    embed.add_field(name='**Events**', value='3x3x3 Cube, 7x7x7 Cube, Pyraminx', inline=False)
-    return await ctx.reply(embed=embed)
-
-@client.command()
-async def recent(ctx):
-    embed = discord.Embed(title='Bangkok Cube Day Winter 2023 ', url='https://www.worldcubeassociation.org/competitions/BangkokCubeDayWinter2023')
-    embed.set_image(url='https://i.imgur.com/IDh3rIO.png')
-    embed.add_field(name='**Date**', value='14 - 15 January 2023')
-    embed.add_field(name='**Location**', value='Central Bangna (Bangna Hall, B Floor)')
-    embed.add_field(name='**Events**', value='3x3x3 Cube, 2x2x2 Cube, 4x4x4 Cube, 5x5x5 Cube, 3x3x3 Blindfolded, 3x3x3 One-Handed', inline=False)
-    return await ctx.reply(embed=embed)
+async def puan(ctx, word):
+    if word == 'ชายสี่':
+        return await ctx.reply('หมี่เกี๊ยว')
+    elif word == '1212312121':
+        return await ctx.reply('เฮ้!')
+    elif word == 'หมี่เกี๊ยว':
+        return await ctx.reply('ซายสี่')
+    elif word == 'ไวพจน์เพชรสุพรรณ':
+        await ctx.send('เอ้ย')
+        return await ctx.reply('ถูกแล้ว!')
+    await ctx.reply(spooner(word, False))
 
 @client.command()
 async def whois(ctx, wcaid = None):
@@ -206,6 +182,36 @@ async def ao5(ctx, a1 = None, a2 = None, a3 = None, a4 = None, a5 = None):
     await ctx.reply(f'Ao5 of {a1}, {a2}, {a3}, {a4}, {a5} = {result}')
 
 @client.command()
+async def getbpawpa(ctx, a1 = None, a2 = None, a3 = None, a4 = None):
+    attempts = [a1, a2, a3, a4]
+    dnf_count = 0
+    if None in attempts:
+        return await ctx.reply(lang_str.calculator_missing_attempt(ctx.author.id, 4))
+    attempts = [i.lower() for i in attempts]
+    if attempts == ['5.41', 'dnf', 'dnf', 'dnf']:
+        return await ctx.reply("Is that you Yindee?")
+    for i in attempts:
+        if i == 'dnf' or i == 'dns':
+            dnf_count += 1
+        if dnf_count > 1:
+            result = 'DNF'
+    if dnf_count == 1:
+        attempts.remove('dnf' if 'dnf' in attempts else 'dns')
+        attempts = [float(i) for i in attempts]
+        attempts.sort()
+        bpa = sum(attempts) / 3
+        bpa = f'{bpa:.2f}'
+        wpa = 'DNF'
+    elif dnf_count == 0:
+        attempts = [float(i) for i in attempts]
+        attempts.sort()
+        bpa = sum(attempts[:-1]) / 3
+        bpa = f'{bpa:.2f}'
+        wpa = sum(attempts[1:]) / 3
+        wpa = f'{wpa:.2f}'
+    await ctx.reply(f'Your BPA is {bpa} and WPA is {wpa}.')
+
+@client.command()
 async def generate(ctx, event, attempts):
     scr = scrambles.gen(event, attempts)
     for i in range(len(scr)):
@@ -254,7 +260,7 @@ async def submit(ctx, event, a1, a2 = None, a3 = None, a4 = None, a5 = None):
                 if i == 'dnf' or i == 'dns':
                     dnf_count += 1
                 if dnf_count > 1:
-                    result = 0
+                    result = -1
             if dnf_count == 1:
                 attempts.remove('dnf' if 'dnf' in attempts else 'dns')
                 attempts = [float(i) for i in attempts]
@@ -273,13 +279,13 @@ async def submit(ctx, event, a1, a2 = None, a3 = None, a4 = None, a5 = None):
         if none_count >= 3:
             return await ctx.reply(lang_str.submit_not_n(ctx.author.id, 3))
         else:
-            attempts = [i.lower() for i in attempts]
+            attempts = [i.lower() for i in attempts if i is not None]
             if 'dnf' in attempts or 'dns' in attempts:
-                result = 0
+                result = -1
             else:
                 attempts = [float(i) for i in attempts]
                 result = sum(attempts) / len(attempts)
-                result = f'{result:.2f}'
+                result = float(f'{result:.2f}')
             result_dict = {'user_id': ctx.author.id, 'event': event, 'a1': a1, 'a2': a2, 'a3': a3, 'a4': a4, 'a5': a5, 'result': result}
             RESULTS_TABLE.insert_one(result_dict)
             await ctx.reply(lang_str.success_submit(ctx.author.id))
@@ -287,13 +293,13 @@ async def submit(ctx, event, a1, a2 = None, a3 = None, a4 = None, a5 = None):
         if none_count >= 3:
             await ctx.reply(lang_str.submit_not_n(ctx.author.id, 3))
         else:
-            attempts = [attempt.replace('dnf', '-1').replace('dns', -2) for attempt in attempts]
-            attempts = [float(i) for i in attempts]
-            result = attempts.remove(-1).remove(-2)
+            attempts = [-1 if attempt.lower() == 'dnf' else -2 if attempt.lower() == 'dns' else float(attempt) for attempt in attempts[:3]]
+            result = attempts
             result.sort()
             result = result[0]
             result_dict = {'user_id': ctx.author.id, 'event': event, 'a1': a1, 'a2': a2, 'a3': a3, 'a4': a4, 'a5': a5, 'result': result}
             RESULTS_TABLE.insert_one(result_dict)
+            await ctx.reply(lang_str.success_submit(ctx.author.id))
     else:
         result = float(a1) if a1.lower() != 'dnf' else 0 if a1.lower() != 'dns' else -1
         result_dict = {'user_id': ctx.author.id, 'event': event, 'a1': a1, 'a2': a2, 'a3': a3, 'a4': a4, 'a5': a5, 'result': result}
@@ -301,9 +307,9 @@ async def submit(ctx, event, a1, a2 = None, a3 = None, a4 = None, a5 = None):
         await ctx.reply(lang_str.success_submit(ctx.author.id))
 
 @client.command()
-async def displayresult(ctx, deldb=False):
+async def display(ctx, deldb=False, title='Weekly Contest'):
     await ctx.typing()
-    if ctx.author.id not in ADMIN_ID:
+    if ctx.author.id not in ADMIN_DISCORD_ID:
         await ctx.author.send('Invalid user.')
         return await ctx.channel.purge(limit=1)
     else:
@@ -327,18 +333,68 @@ async def displayresult(ctx, deldb=False):
                 podium_results[event] = events_results[event][:submitted_num]
         print('Done!')
         await ctx.channel.purge(limit=1)
-        embed = discord.Embed(title='Results for Weekly Contest', url='https://discord.gg/JAAJsZY')
+        embed = discord.Embed(title=f'Results for {title}', url='https://discord.gg/JAAJsZY')
         for event in podium_results:
             ev = ''
             for indv in podium_results[event]:
                 if indv['result'] <= 0:
                     continue
+                if indv['result'] >= 60:
+                    indv['result'] = SEC2MIN(indv['result'])
                 ev += f'<@{indv["user_id"]}>\t({indv["result"]})\n'
             embed.add_field(name=EVENT_ID[event], value=ev)
         embed.set_footer(text='This system was made by kinpkt#2815 \nIf any rankings are incorrect, please contact kinpkt#2815.')
-        await ctx.send('<@&1043103408011366450> **Weekly Contest results are here.**\n', embed=embed)
+        await ctx.send(f'<@&1043103408011366450> **{title} results are here.**\n', embed=embed)
         if deldb:
             await ctx.author.send('Results are successfully resetted.')
             RESULTS_TABLE.delete_many({})
+
+@client.command()
+async def getwcif(ctx, comp_id):
+
+    def check(msg):
+        return msg.author == ctx.author
+
+    await ctx.author.send('Please type in your WCA account e-mail below.')
+    
+    email_input = await client.wait_for('message', check=check)
+    email = email_input.content
+
+    await ctx.author.send('Please type in your WCA account password below (make sure to delete the message after finished).')
+
+    pw_input = await client.wait_for('message', check=check)
+    password = pw_input.content
+
+    LOGIN_URL = 'https://www.worldcubeassociation.org/oauth/token'
+    DATA = {
+        'grant_type': 'password',
+        'client_id': 'qWbPYiJZZzqOAFmcOxBacUR-7Mu2Gt2uMJumg6xvyNc',
+        'client_secret': 'nNOS__iR-60Xikpa-4bFZjDZi0_5pPT-9VJKqCz2wRM',
+        'username': email,
+        'password': password,
+        'scope': 'manage_competitions'
+    }
+
+    response = requests.post(LOGIN_URL, data=DATA)
+    if response.status_code == 200:
+        TOKEN = response.json()['access_token']
+        TYPE = response.json()['token_type']
+        WCIF_URL = f'https://www.worldcubeassociation.org/api/v0/competitions/{comp_id}/wcif'
+        headers = {'Authorization': f'{TYPE} {TOKEN}'}
+        wcif = requests.get(WCIF_URL, headers=headers)
+        if wcif.status_code == 200:
+            print(f'Downloading file for {comp_id}...')
+            wcif_json = json.dumps(wcif.json(), indent=4, ensure_ascii=False)
+            with open(f'{comp_id}.json', 'w', encoding='utf-8') as file:
+                file.write(wcif_json)
+            await client.send_file(ctx.message.channel, open(f'{comp_id}.json'))
+            print('Downloaded successfully.')
+            print('---------------------------------------------------------')
+        else:
+            print(wcif.status_code)
+            print("Sorry, but you aren't the organizer / delegate of this competition.")
+            print('Request failed with status code: ', response.status_code)
+    else:
+        print('Login failed with status code: ', response.status_code)
 
 client.run(os.getenv('TOKEN'))
