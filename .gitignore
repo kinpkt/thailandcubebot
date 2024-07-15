@@ -1,3 +1,5 @@
 /__pycache__
 .env
-thailandcubebot.zip
+*.zip
+playsound.py
+.vscode
