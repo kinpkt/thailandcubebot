@@ -10,7 +10,6 @@ import scrambles
 from dotenv import load_dotenv
 from translate import Translator
 from discord.ext import commands
-from pythainlp.transliterate import puan as spooner
 
 load_dotenv()
 
@@ -90,19 +89,6 @@ async def on_guild_remove(guild):
 async def help(ctx):
     lang = GET_USER_LANG(ctx.author.id)
     return await ctx.send('https://drive.google.com/file/d/15pgT27nR8yvBQO3x8YdDbk3EU54YgW6M/view?usp=sharing') if lang == 'en' else await ctx.send('https://drive.google.com/file/d/1aSeI5s415Q1hszS7ndpLrCMuMwX1ZeKx/view?usp=sharing')
-
-@client.command()
-async def puan(ctx, word):
-    if word == 'ชายสี่':
-        return await ctx.reply('หมี่เกี๊ยว')
-    elif word == '1212312121':
-        return await ctx.reply('เฮ้!')
-    elif word == 'หมี่เกี๊ยว':
-        return await ctx.reply('ซายสี่')
-    elif word == 'ไวพจน์เพชรสุพรรณ':
-        await ctx.send('เอ้ย')
-        return await ctx.reply('ถูกแล้ว!')
-    await ctx.reply(spooner(word, False))
 
 @client.command()
 async def whois(ctx, wcaid = None):
